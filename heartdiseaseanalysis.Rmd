@@ -1,0 +1,845 @@
+---
+title: "Heart disease"
+author: "W.G.M.P.Karunathilaka"
+date: "2025-06-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+df <- read.csv("D://Documents//Year3//Data Visualization with R//final//heart_2022_with_nans.csv")
+str(df)
+
+```
+```{r}
+colnames(df)
+
+```
+
+
+
+```{r}
+# Check missing values
+colSums(is.na(df))
+```
+```{r}
+df_clean <- na.omit(df)
+#This removes any row where at least one column is NA.
+
+colSums(is.na(df_clean))
+
+```
+```{r}
+nrow(df)
+nrow(df_clean)
+dim(df)
+dim(df_clean)
+```
+```{r}
+# Convert all "" entries in character columns to NA
+df_clean[df_clean == ""] <- NA
+
+#Drop Rows with Any NA After Conversion
+df_clean <- na.omit(df_clean)
+```
+
+```{r}
+summary(df_clean)
+```
+```{r}
+summary(df_clean[sapply(df_clean, is.numeric)])
+```
+
+
+
+```{r}
+#View unique values in smoker status
+unique(df_clean$SmokerStatus)
+```
+```{r}
+library(dplyr)
+# Mapping and Reassigning 
+df_clean$SmokerGroup <- case_when(
+  df_clean$SmokerStatus == "Never smoked" ~ "Never",
+  df_clean$SmokerStatus == "Former smoker" ~ "Former",
+  df_clean$SmokerStatus %in% c("Current smoker - now smokes every day", 
+                         "Current smoker - now smokes some days") ~ "Current",
+  df_clean$SmokerStatus == "" | is.na(df_clean$SmokerStatus) ~ "Unknown",
+)
+```
+
+
+
+
+```{r}
+#4. Smoking Habits and Heart Disease Prevalence by Sex
+
+library(ggplot2)
+ggplot(df_clean, aes(x = SmokerGroup, fill = HadHeartAttack)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~Sex) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("No" = "lightblue", "Yes" = "#152896")) +
+  labs(
+    title = "Heart Disease Prevalence by Smoking and Sex",
+    y = "Proportion",
+    x = "Smoking Status",
+    fill = "Heart Disease"
+  ) +
+  theme_minimal()
+
+##The graph shows that smoking history affects heart disease risk. Among men, approximately 18% of current smokers have had a heart attack, compared with about 10% of ex-smokers and only 6% of never smokers. Among women, the pattern is the same approximately 15% of current smokers have heart disease, compared with 8–9% of ex-smokers and 5% of never smokers. This strongly suggests smoking—especially recent smoking—is highly linked with heart disease, and men are only slightly more affected.
+
+```
+```{r}
+unique(df_clean$AgeCategory)
+```
+```{r}
+# Define correct order of age groups
+age_levels <- c(
+  "Age 18 to 24", "Age 25 to 29", "Age 30 to 34", "Age 35 to 39", "Age 40 to 44",
+  "Age 45 to 49", "Age 50 to 54", "Age 55 to 59", "Age 60 to 64",
+  "Age 65 to 69", "Age 70 to 74", "Age 75 to 79", "Age 80 or older"
+)
+```
+
+```{r}
+# Convert AgeCategory column to ordered factor
+df_clean$AgeCategory <- factor(df_clean$AgeCategory, levels = age_levels, ordered = TRUE)
+```
+
+```{r}
+#A heatmap of Stroke and Heart Disease co-occurrence by Age Group
+
+library(dplyr)
+library(ggplot2)
+
+# Step 1: Summarize the data
+heatmap_data <- df_clean %>%
+  filter(HadStroke != "" & HadHeartAttack != "" & AgeCategory != "") %>%
+  group_by(HadStroke, HadHeartAttack, AgeCategory) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Step 2: Create the heatmap
+ggplot(heatmap_data, aes(x = HadStroke, y = HadHeartAttack, fill = count)) +
+  geom_tile(color = "white") +
+  facet_wrap(~ AgeCategory) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  labs(
+    title = "Co-occurrence of Stroke and Heart Disease by Age Group",
+    x = "Stroke Status",
+    y = "Heart Disease Status",
+    fill = "Count"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#This heatmap shows how stroke and heart disease often happen together, especially in older age groups. In the 80+ age group, over 20,000 individuals reported both conditions. The number is also high (over 15,000) for the 75–79 group. In contrast, younger people like those aged 18–24 or 25–29 have almost no cases of both. This shows that as people age, their chances of having both heart disease and stroke increases a lot.
+
+
+```
+
+```{r}
+#6. Physical Activity in Diabetic vs. Non-Diabetic Individuals (Faceted Bar Chart)
+# Plot
+ggplot(df_clean, aes(x = PhysicalActivities, fill = HadHeartAttack)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ HadDiabetes) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("No" = "green", "Yes" = "purple")) +
+  labs(
+    title = "Physical Activity vs Heart Disease in Diabetics and Non-Diabetics",
+    x = "Physical Activity",
+    y = "Percentage",
+    fill = "Heart Disease"
+  ) +
+  theme_minimal()
+
+#The chart indicates the difference between physically active and physically inactive people, separated by diabetes status. In diabetic people, the inactive group has a rate of about 22% heart disease, while the active group has a lower rate of about 11%. In non-diabetic individuals, the difference is smaller: the inactive have a rate of about 9%, while the active have a rate of about 5%. This suggests that exercise is for all, especially the diabetic..
+```
+```{r}
+#7.General Health vs. Heart Disease (Counts
+
+# Filter out empty values
+df_health <- df_clean %>%
+  filter(GeneralHealth != "", HadHeartAttack != "")
+
+# Plot
+ggplot(df_health, aes(x = GeneralHealth, fill = HadHeartAttack)) +
+  geom_bar(position = "dodge") +  # Side-by-side bars
+  labs(
+    title = "Heart Disease Count by General Health Rating",
+    x = "Self-Reported General Health",
+    y = "Number of Individuals",
+    fill = "Had Heart Attack"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#This bar chart shows that self-rated health is strongly related to heart disease. People who rate their health as "Poor" have the highest number of cases of heart disease—a total of around 75,000. Those who rate their health as "Fair" follow with over 60,000 cases. People who report being in "Excellent" or "Very Good" health have significantly fewer cases, around 15,000–20,000. This implies people's own ratings of their health can be used to predict their likelihood of heart disease.
+
+
+```
+```{r}
+#6. Physical Activity in Diabetic vs. Non-Diabetic Individuals 
+# Create a binary column for heart disease
+# Create a binary column for heart disease
+df_clean <- df_clean %>%
+  mutate(HeartDisease = ifelse(HadHeartAttack == "Yes", 1, 0))
+
+# Filter relevant columns and remove NAs
+df_density <- df_clean %>%
+  filter(!is.na(HeartDisease), !is.na(PhysicalActivities), !is.na(HadDiabetes))
+
+# Plot density with custom colors
+ggplot(df_density, aes(x = HeartDisease, fill = PhysicalActivities)) +
+  geom_density(alpha = 0.5, adjust = 4.5) +
+  facet_wrap(~ HadDiabetes) +
+  scale_fill_manual(
+    values = c("Yes" = "blue",  # Blue for active
+               "No"  = "red")  # Red for inactive
+  ) +
+  labs(
+    title = "Heart Disease Density by Physical Activity and Diabetes Status",
+    x = "Heart Disease (1 = Yes, 0 = No)",
+    fill = "Physically Active"
+  ) +
+  theme_minimal()
+
+#This graph shows the  how a person suffering from heart disease based on physical exercise and diabetes. For diabetics not exercising, the peak of the curve is at about 1.0, with high rates of heart disease. For exercising diabetics, the curve is at about 0.0, showing few cases. For non-diabetics, the same trend occurs but not as strongly. This strongly illustrates how frequent exercise reduces the risk of heart disease, particularly for individuals with diabetes.
+
+
+```
+
+```{r}
+#Mental Health vs Physical Health
+
+ggplot(df_clean, aes(x = PhysicalHealthDays, y = MentalHealthDays, color = HadHeartAttack)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("No" = "#4CAF50", "Yes" = "#F44336")) +
+  labs(
+    title = "Mental Health vs Physical Health by Heart Disease Status",
+    x = "Physical Health Days (past 30 days)",
+    y = "Mental Health Days (past 30 days)",
+    color = "Heart Disease"
+  ) +
+  theme_minimal()
+
+#This scatter plot graphs the number of days people reported feeling physically and mentally ill during the past 30 days. People with heart disease (red) also tend to report 10 or more days of mental and physical illness. There are large clusters of them in the upper-right quadrant of the graph. People without heart disease (green) mostly report fewer than 5 days of poor health. This shows a strong link between poor mental and physical health and heart disease.
+```
+```{r}
+ggplot(df_clean, aes(x = HeightInMeters, y = WeightInKilograms, color = HadHeartAttack)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("No" = "lightgreen", "Yes" = "#D32F2F")) +
+  labs(
+    title = "Height vs Weight Colored by Heart Disease Status",
+    x = "Height (in meters)",
+    y = "Weight (in kilograms)",
+    color = "Heart Disease"
+  ) +
+  theme_minimal()
+
+#The plot shows that heart disease is more common in people of higher body weight. For example, people over 100 kg are more likely to have heart disease, especially if they are also short. People under 70 kg have fewer cases. Height alone does not show much pattern, but weight does have a very strong correlation with heart disease. This shows that body weight (and maybe BMI) is important factor for having heart disease.
+
+```
+```{r}
+library(reshape2)
+library(dplyr)
+# Select only numeric health-related columns
+df_corr <- df_clean %>%
+  select(BMI, PhysicalHealthDays, MentalHealthDays, SleepHours) %>%
+  na.omit()  # Remove rows with NA values
+
+# Compute correlation matrix
+cor_matrix <- cor(df_corr)
+
+# Melt for ggplot2
+cor_melt <- melt(cor_matrix)
+
+# Create heatmap
+ggplot(cor_melt, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white",
+                       midpoint = 0, limit = c(-1, 1), name = "Correlation") +
+  labs(
+    title = "Health Metric Correlation Heatmap",
+    x = "Variables", y = "Variables"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+#This heatmap shows how different health measurements relate to each other:
+#PhysicalHealthDays and MentalHealthDays are positively highly correlated (~0.55), i.e., when people are ill physically, they are also ill mentally.
+#BMI and PhysicalHealthDays have a moderate positive correlation (~0.3), showing that people with a higher BMI feel worse physically.
+#SleepHours is weakly negatively correlated (~-0.2) with physical and mental unhealthy days, meaning that people who sleep more feel better.
+#This shows that many illnesses are connected and affect each other
+```
+```{r}
+#Alcohol and E-Cigarette Usage vs. Heart Disease
+# Filter to remove missing values in relevant columns
+df_combined <- df_clean %>%
+  filter(!is.na(AlcoholDrinkers), !is.na(ECigaretteUsage), !is.na(HadHeartAttack))
+
+# Create grouped bar plot
+ggplot(df_combined, aes(x = AlcoholDrinkers, fill = HadHeartAttack)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ECigaretteUsage) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("No" = "lightblue", "Yes" = "#152896")) +
+  labs(
+    title = "Heart Disease by Alcohol and E-Cigarette Use",
+    x = "Alcohol Consumption",
+    y = "Proportion with Heart Disease",
+    fill = "Had Heart Attack"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#The graph shows the relationship between heart disease, alcohol consumption, and e-cigarette use, with heart attack incidence used as an indicator of heart disease. Overall, the proportion of individuals who had a heart attack remains stable, ranging from 4.5% to 6% across all categories.Among those who have never used e-cigarettes, about 6% reported a heart attack, regardless of alcohol consumption. A similar trend is seen in those who do not currently use e-cigarettes, with heart attack rates around 5–6% for both alcohol users and non-users.For e-cigarette users (either daily or occasionally), heart disease rates are slightly lower, ranging from 4.5% to 5%, with little difference between alcohol consumers and non-consumers.In conclusion, the data suggests that neither e-cigarette use nor alcohol consumption has a strong or consistent association with heart disease, as heart attack rates do not show significant variation with these factors.
+```
+
+```{r}
+#Balloon Plot: Sex × Angina × Heart Disease
+df_balloon <- df_clean %>%
+  count(Sex, HadAngina, HadHeartAttack)
+
+ggplot(df_balloon, aes(x = Sex, y = HadAngina, size = n, fill = HadHeartAttack)) +
+  geom_point(shape = 21, color = "black") +
+  scale_size(range = c(3, 15)) +
+  labs(title = "Balloon Plot: Sex, Angina and Heart Disease",
+       x = "Sex", y = "Had Angina", size = "Count") +
+  theme_minimal()
+
+#This graph demonstrates the link between angina and heart disease in men and women using different data points. The larger the balloon, the more people are in that group, and the color tells if a heart attack has happened to anyone in that group. The largest group is formed by women who do not have angina or heart disease, which amounts to about 90,000 patients. In men with angina, a large number also have heart disease, and this is displayed with dark balloons filling the space under the signs for angina . For this reason, angina is strongly connected to heart disease, mostly in males. Angina indicates that a man is at higher risk, so it should be use  as an early indicator.
+
+
+```
+```{r}
+#View unique values in smoker status
+unique(df_clean$CovidPos)
+```
+
+
+
+```{r}
+df_bar <- df_clean %>%
+  filter(!is.na(FluVaxLast12), !is.na(CovidPos), !is.na(HadHeartAttack))
+
+ggplot(df_bar, aes(x = FluVaxLast12, fill = HadHeartAttack)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~CovidPos) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Heart Disease by Flu Vaccine Status (Faceted by COVID)",
+    x = "Flu Vaccine Status", y = "Proportion", fill = "Heart Disease"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.margin = margin(t = 40, r = 10, b = 10, l = 10)  # Increased top margin
+  )
+
+#This graph illustrates how flu vaccination, heart disease, and COVID-19 are tied together. It looks at three groups: Some are people without COVID, some are people with COVID-19, and some have a positive result from a home test. The pattern is always the same among all three groups. Heart disease is more common among those who are vaccinated. Among people who have been vaccinated for COVID, close to 50% have heart disease, while this percentage is as high as 30% for those not vaccinated. This suggests two things: Getting a flu vaccine does not prevent heart disease, so it could be that those who choose not to be vaccinated are actually healthier, therefore lowering their chances of heart disease.
+
+. 
+```
+
+```{r}
+#BMI vs. Heart Disease
+ggplot(df_clean, aes(x = BMI, fill = HadHeartAttack)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "BMI Density by Heart Disease Status",
+       x = "BMI", fill = "Heart Disease") +
+  theme_minimal()
+
+#It plot looks at the relationship between BMI (Body Mass Index) and having or not having heart disease. Those people who don’t have heart disease are shown on the pink curve, while the blue curve contains information on people who do. Majority of people in both groups fall in the group called overweight, with a BMI ranging from 25 to 30. The Pink curve (for those with no heart disease) is higher and thinner, which means their BMI’s are somewhat less spread out and their average is lower. Compared to the other group, the blue curve (heart disease group) is flat and goes higher, even up to a BMI of 40. It means that such people often have a greater range and higher BMI scores. Even though the difference is minor, it suggests that having a higher BMI may increase the chances of heart disease. In short, almost all individuals with or without heart disease usually have a BMI of 25–30, yet heart patients are probably to have a BMI that is higher.
+```
+```{r}
+diseases <- df[, c("HadHeartAttack", "HadAngina", "HadStroke", 
+                   "HadDiabetes", "HadAsthma", "HadArthritis", 
+                   "HadCOPD", "HadSkinCancer", "HadKidneyDisease")]
+
+```
+
+
+```{r}
+diseases_bin <- as.data.frame(lapply(diseases, function(x) ifelse(x == "Yes", 1, 0)))
+```
+
+```{r}
+library(corrplot)
+
+# Calculate correlation matrix
+cor_matrix <- cor(diseases_bin)
+
+# Plot with correlation values displayed
+corrplot(
+  cor_matrix,
+  method = "color",               # colored squares
+  type = "full",                 # show only upper triangle (optional)
+  addCoef.col = "black",          # show correlation coefficients in black
+  tl.col = "black",               # text label color
+  tl.srt = 45,                    # rotate text labels
+  number.cex = 0.7,               # size of correlation values
+  title = "Co-occurrence of Diseases",
+  mar = c(0, 0, 2, 0)             # margin
+)
+
+#The heat map illustrates that heart attacks have the strongest link with angina, with a correlation of 0.43. This makes sense because chest pain, known as angina, is typically linked to heart disease. Heart attacks are also loosely connected to stroke (0.18), diabetes (0.15), and COPD (0.14). Among the various diseases, the closest to heart attacks are angina, stroke, and diabetes, but there is a weaker link with respiratory, kidney, and autoimmune conditions.
+```
+#EDA Analysis -02
+```{r}
+# Load necessary packages
+library(tidyverse)
+library(caret)   # for normalization
+```
+```{r}
+# 1. Load original data
+data <- read.csv("D://Documents//Year3//Data Visualization with R//final//heart_2022_with_nans.csv")
+
+```
+
+```{r}
+sum(is.na(data))
+```
+
+```{r}
+# 2. Remove missing values → save as data_n
+data_n <- na.omit(data)
+sum(is.na(data_n))
+
+```
+
+
+
+
+# 01.Heart Disease Rate by Age and Race
+```{r}
+# Filter relevant columns and remove missing
+age_race_data <- data_n %>%
+  select(AgeCategory, RaceEthnicityCategory, HadHeartAttack) %>%
+  na.omit()
+
+# Convert heart attack to binary
+age_race_data <- age_race_data %>%
+  mutate(HeartDisease = ifelse(HadHeartAttack == "Yes", 1, 0))
+
+# Group by Age and Race and calculate heart disease rate
+age_trends <- age_race_data %>%
+  group_by(AgeCategory, RaceEthnicityCategory) %>%
+  summarise(HeartDiseaseRate = mean(HeartDisease), .groups = 'drop')
+
+
+library(ggplot2)
+library(scales)
+
+ggplot(age_trends, aes(x = AgeCategory, y = HeartDiseaseRate, color = RaceEthnicityCategory, group = RaceEthnicityCategory)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  labs(title = "Heart Disease Rate by Age and Race",
+       x = "Age Group",
+       y = "Heart Disease Rate",
+       color = "Race") +
+  scale_y_continuous(labels = percent_format()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+# BMI Distribution by Heart Disease Status
+```{r}
+# Filter relevant columns and remove missing
+risk_data <- data_n %>%
+  select(SmokerStatus, HadDiabetes, BMI, HadHeartAttack) %>%
+  na.omit()
+
+# Convert Yes/No
+risk_data <- risk_data %>%
+  mutate(
+    Smoker = ifelse(SmokerStatus == "Yes", "Smoker", "Non-Smoker"),
+    Diabetes = ifelse(HadDiabetes == "Yes", "Diabetic", "Non-Diabetic"),
+    HeartDisease = ifelse(HadHeartAttack == "Yes", 1, 0),
+    BMICategory = case_when(
+      BMI < 18.5 ~ "Underweight",
+      BMI < 25 ~ "Normal",
+      BMI < 30 ~ "Overweight",
+      TRUE ~ "Obese"
+    )
+  )
+
+# Summarize average heart disease rate
+risk_summary <- risk_data %>%
+  group_by(Smoker, Diabetes, BMICategory) %>%
+  summarise(HeartDiseaseRate = mean(HeartDisease), .groups = 'drop')
+
+
+#Boxplot – BMI by Heart Disease Status
+# Clean and prepare data
+bmi_data <- data_n %>%
+  select(BMI, HadHeartAttack) %>%
+  na.omit() %>%
+  mutate(HeartDisease = ifelse(HadHeartAttack == "Yes", "Heart Disease", "No Heart Disease"))
+
+# Plot
+ggplot(bmi_data, aes(x = HeartDisease, y = BMI, fill = HeartDisease)) +
+  geom_boxplot() +
+  labs(title = "BMI Distribution by Heart Disease Status",
+       x = "Heart Disease Status",
+       y = "BMI") +
+  theme_minimal() +
+  scale_fill_manual(values = c("tomato", "steelblue"))
+
+```
+# Heart Disease by Age Group 
+```{r}
+# Filter valid rows and create HeartDisease column
+data_n <- data_n %>%
+  filter(HadHeartAttack %in% c("Yes", "No")) %>%
+  mutate(HeartDisease = ifelse(HadHeartAttack == "Yes", 1, 0))
+
+# Before plotting, make sure AgeCategory is a factor with proper labels
+data_n$AgeCategory <- factor(data_n$AgeCategory, ordered = TRUE)
+
+# Convert target back to factor for plotting (already done)
+data_n$HeartDisease <- factor(data_n$HeartDisease, labels = c("No Heart Disease", "Heart Disease"))
+
+# Sample for efficient plotting
+set.seed(123)
+data_n <- data_n %>% sample_n(10000)
+
+#  Heart Disease by Age Group 
+ggplot(data_n, aes(x = AgeCategory, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Heart Disease by Age Group", x = "Age Category", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+# BMI vs Sleep Hours by Heart Disease Status
+```{r}
+# Scatter plot: BMI vs Sleep Hours by Heart Disease
+ggplot(data_n, aes(x = BMI, y = SleepHours, color = HeartDisease)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "BMI vs Sleep Hours by Heart Disease Status",
+       x = "Normalized BMI",
+       y = "Normalized Sleep Hours") +
+  theme_minimal()
+
+```
+
+
+
+
+```{r}
+
+
+# Create a copy for preprocessing
+heart_clean <- data_n %>%
+  filter(HadHeartAttack %in% c("Yes", "No")) %>%
+  mutate(HeartDisease = ifelse(HadHeartAttack == "Yes", 1, 0))
+
+# Normalize numerical columns
+normalize <- function(x) {
+  return ((x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+}
+
+heart_clean <- heart_clean %>%
+  mutate(
+    BMI = normalize(BMI),
+    PhysicalHealthDays = normalize(PhysicalHealthDays),
+    MentalHealthDays = normalize(MentalHealthDays),
+    SleepHours = normalize(SleepHours)
+  )
+
+# Encode categorical columns
+heart_clean <- heart_clean %>%
+  mutate(
+    SmokerStatus = as.numeric(factor(SmokerStatus)),
+    GeneralHealth = as.numeric(factor(GeneralHealth, levels = c("Excellent", "Very good", "Good", "Fair", "Poor"))),
+    PhysicalActivities = as.numeric(PhysicalActivities),
+    AlcoholDrinkers = as.numeric(AlcoholDrinkers),
+    Sex = as.numeric(factor(Sex)),
+    RaceEthnicityCategory = as.numeric(factor(RaceEthnicityCategory)),
+    AgeCategory = as.numeric(factor(AgeCategory, ordered = TRUE))
+  )
+
+# Convert target back to factor for plotting
+heart_clean$HeartDisease <- factor(heart_clean$HeartDisease, labels = c("No Heart Disease", "Heart Disease"))
+
+# Sample for efficient plotting
+set.seed(123)
+heart_sample <- heart_clean %>% sample_n(10000)
+
+# Plot 1: Heart Disease by Smoker Status
+ggplot(heart_sample, aes(x = factor(SmokerStatus), fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Heart Disease by Smoking Status", x = "Smoker Status (Encoded)", y = "Count") +
+  theme_minimal()
+
+# Plot 2: Heart Disease by General Health
+ggplot(heart_sample, aes(x = factor(GeneralHealth), fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Heart Disease by General Health", x = "General Health (1 = Excellent → 5 = Poor)", y = "Count") +
+  theme_minimal()
+
+# Plot 3: Heart Disease by Physical Activity
+ggplot(heart_sample, aes(x = factor(PhysicalActivities), fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Heart Disease by Physical Activity", x = "Physically Active (0 = No, 1 = Yes)", y = "Count") +
+  theme_minimal()
+
+# Plot 4: BMI Distribution by Heart Disease
+ggplot(heart_sample, aes(x = HeartDisease, y = BMI, fill = HeartDisease)) +
+  geom_boxplot() +
+  labs(title = "Normalized BMI by Heart Disease Status", x = "Heart Disease", y = "Normalized BMI") +
+  theme_minimal()
+
+# Plot 5: Heart Disease by Age Group
+ggplot(heart_sample, aes(x = factor(AgeCategory), fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Heart Disease by Age Group", x = "Age Category (Encoded)", y = "Count") +
+  theme_minimal()
+
+```
+
+
+```{r}
+
+data_n %>%
+  filter(!is.na(Sex), !is.na(HadHeartAttack)) %>%
+  group_by(Sex, HadHeartAttack) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  ggplot(aes(x = Sex, y = Count, fill = HadHeartAttack)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Heart Attack Count by Gender",
+    x = "Gender",
+    y = "Number of Individuals",
+    fill = "Had Heart Attack"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("Yes" = "#e41a1c", "No" = "#377eb8"))
+```
+
+
+
+
+
+#Statistical Analysis
+```{r}
+#load the dataset
+data<-read.csv("D://Documents//Year3//Data Visualization with R//final//heart_2022_with_nans.csv")
+```
+
+```{r}
+# Check for missing values
+print("Number of missing values per column before removal:")
+print(colSums(is.na(data)))
+#Since the dataset contains 400000+ entries and mostly missing values are in the categorical variables the best option to clean the data is by ommiting the entire row
+#Thereby it is easy to perform our work as by reducing the dataset. Filling the missing values would not be a practical option for this dataset as categorical variables cannot be filled and our plot  values would significantly change.
+```
+```{r}
+# Remove rows with any missing values
+data_n <- data.frame(na.omit(data))
+```
+```{r}
+# Verify that missing values have been removed
+print("\nNumber of missing values per column after removal:")
+print(colSums(is.na(data_n)))
+```
+```{r}
+names(data_n)
+#Check for the variable names
+```
+
+
+
+
+```{r}
+# --------------------------------------------------------------------------
+# Visualization 1: Compare spread and central tendency of PhysicalHealth and MentalHealth across heart disease categories.
+# Plot Type: Boxplot
+# --------------------------------------------------------------------------
+library(ggplot2)
+ggplot(data_n, aes(x = BMI)) +
+  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black") +
+  labs(title = "Distribution of Body Mass Index (BMI)",
+       x = "BMI",
+       y = "Frequency") +
+  theme_minimal()
+
+#Distribution of BMI : The histogram shows a right-skewed distribution of BMI values, with most individuals falling in the overweight range (BMI 25–30), which is also the mode. There is a long tail toward higher BMI values, indicating the presence of obese individuals. The data is widely dispersed, with few low BMI values and a noticeable number of high BMI values exceeding 50.
+
+ggplot(data_n, aes(x = SleepHours)) +
+  geom_histogram(binwidth = 1, fill = "lightcoral", color = "black") +
+  labs(title = "Distribution of Average Sleep Time",
+       x = "Average Hours of Sleep per Night",
+       y = "Frequency") +
+  theme_minimal()
+#Distribution of Average sleep hours : The histogram shows that most people in the study claim that their average sleep duration during the night is 7 to 8 hours. The further sleep time is from the central range, the less people report those amounts. The sketched distribution is approximately symmetrical, which indicates a standard deviation from the average shape. However, a part of the population is rather notable for sleeping beyond the recommended interval.
+
+```
+```{r}
+# --------------------------------------------------------------------------
+# Visualization 2: Distribution of Sleep Time by Heart Disease Status.
+# Plot Type: Density plot
+# --------------------------------------------------------------------------
+
+plot_sleep_binary <- ggplot(data_n, aes(x = SleepHours, fill = HadHeartAttack, color = HadHeartAttack)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_manual(values = c("No" = "skyblue", "Yes" = "salmon")) +
+  scale_color_manual(values = c("No" = "skyblue", "Yes" = "salmon")) +
+  labs(title = "Distribution of Sleep Time by Heart Disease Status",
+       x = "Average Hours of Sleep per Night",
+       y = "Density",
+       fill = "Heart Disease",
+       color = "Heart Disease") +
+  theme_minimal()
+
+print(plot_sleep_binary)
+#The density plot plots sleep duration for those with and without heart disease. With overlapping distributions it was discovered that both groups have varied sleep. However, those with heart disease seem to have higher densities of ZBVFAs at shorter (5-6 hours) and longer (approx. 9 hours) sleep durations.
+```
+
+```{r}
+
+# Visualization 4: Chi-Square Testperformed for HeartDisease vs. BMI
+# Plot Type: Mosiac plot
+
+library(dplyr)
+data_n$BMICategory <- cut(data_n$BMI,
+                           breaks = c(0, 18.5, 25, 30, Inf),
+                           labels = c("Underweight", "Normal weight", "Overweight", "Obese"),
+                           right = FALSE)
+
+# Group the data by Race and BMICategory and calculate the proportion of HeartDisease within each group
+heart_disease_by_bmi_race <- data_n %>%
+  group_by(RaceEthnicityCategory, BMICategory) %>%
+  summarise(Total = n(),
+            HeartDiseaseCount = sum(as.numeric(HadHeartAttack) - 1), # Assuming "Yes" is 2 and "No" is 1
+            Prevalence = HeartDiseaseCount / Total) %>%
+  filter(!is.na(BMICategory)) # Remove rows with NA BMI category
+
+
+```
+```{r}
+# 2. Visualize with Mosaic Plot 
+cat("Chi-Square Test: HeartDisease vs. BMI\n")
+contingency_table_smoking <- table(data_n$HadHeartAttack, data_n$BMICategory)
+print(contingency_table_smoking)
+chisq_test_smoking <- chisq.test(contingency_table_smoking)
+print(chisq_test_smoking)
+
+# 2. Visualize with Mosaic Plot (using base R graphics)
+
+# Mosaic Plot for HeartDisease vs. Smoking
+mosaicplot(contingency_table_smoking,
+           main = "Mosaic Plot of Heart Disease vs. BMI",
+           xlab = "Heart Disease",
+           ylab = "BMI",
+           color = c("red","blue","yellow","purple"),
+           las=1)
+#The mosaic plot is the relationship between BMI and heart disease. It seems that larger bars denote higher categories of BMI. The vertical segments in each of the BMI bars indicate the percentage with and without a heart disease. With the eyes, heart disease appears higher in the overweight and obese categories than normal weight one. The proportion of heart disease underweight is lowest.
+
+#Chisquare Test: The mosaic plot implies this relationship, with the proportion of heart disease becoming higher with increase in BMI categories. This finding is dramatically supported by the fact that a statistically significant Chi-Square test (p < 2.2e-16) provides confirmation for a non-random association between these two variables in the dataset. In the youngest member the Underweight category the lowest percentage of cases of heart diseases are recorded.
+```
+
+```{r}
+# --------------------------------------------------------------------------
+# Visualization 5: Perform correlation to all the numerical variables available
+# Plot Type: Heat map
+# --------------------------------------------------------------------------
+library(tidyr)
+# Assuming your cleaned dataset is named 'data_n'
+# Identify numerical columns for correlation
+numerical_cols <- c( "BMI", "SleepHours", "PhysicalHealthDays", "MentalHealthDays")
+
+# Select only the numerical columns
+numerical_data <- data_n %>%
+  select(all_of(numerical_cols))
+
+# Calculate the correlation matrix
+correlation_matrix <- cor(numerical_data, use = "pairwise.complete.obs")
+
+# Convert the correlation matrix to a long format for ggplot2
+correlation_df <- as.data.frame(correlation_matrix) %>%
+  mutate(Var1 = rownames(correlation_matrix)) %>%
+  pivot_longer(cols = -Var1, names_to = "Var2", values_to = "Correlation")
+
+# Create the heatmap
+heatmap_plot <- ggplot(correlation_df, aes(x = Var1, y = Var2, fill = Correlation)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                       midpoint = 0, limit = c(-1, 1), space = "Lab",
+                       name = "Pearson\nCorrelation") +
+  coord_fixed() + # Ensure cells are square
+  labs(title = "Correlation Heatmap of Numerical Variables") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank()) +
+  geom_text(aes(label = round(Correlation, 2)), color = "black", size = 3) # Add correlation values
+
+print(heatmap_plot)
+print(correlation_matrix)
+#On the heatmap, there is weak correlation between BMI, SleepHours, PhysicalHealthDays and MentalHealthDays. BMI has small positive correlations with poor physical/mental health days and a trivial negative correlation with sleep. The physical and mental health days have a moderate positive correlation. The correlations between sleep and the other variables are weak negative.
+
+#Correlation matrix: The weak correlational relationship of the correlation matrix is demonstrated for BMI, SleepHours, PhysicalHealthDays, and MentalHealthDays. BMI has small positive associations with poor physical/mental health and a minimal negative association with sleep. Sleep exhibits poor correlations with the others negatively. The moderate positive correlation exists between physical and mental health.
+```
+```{r}
+# Assuming 'HeightInMeters' is the factor variable
+data_n$HeightInMeters <- as.numeric(as.character(data_n$HeightInMeters))
+
+# Assuming 'WeightInKilograms' is the factor variable
+data_n$WeightInKilograms <- as.numeric(as.character(data_n$WeightInKilograms))
+
+# One-sample t-test for HeightInMeters against a hypothesized mean of, say, 1.65 meters
+t.test(data_n$HeightInMeters, mu = 1.65)
+
+# One-sample t-test for WeightInKilograms against a hypothesized mean of, say, 70 kilograms
+t.test(data_n$WeightInKilograms, mu = 70)
+
+#From one-sample t test on weight in kilograms, there is a statistically significant difference (p < 2.2e-16) between sample mean weight (83.26 kg) as compared to the hypothesized population mean of 70 kg. The 95% confidence interval (83.19-83.33 kg) also does not include 70 kg suggesting that mean weight in your sample is significantly higher than 70 kg. Likely a similar t-test (results not fully shown) was done for height in relation to hypothesized mean.
+```
+```{r}
+# Convert the 'HadHeartAttack' variable to numerical (0 for "No", 1 for "Yes")
+data_n$HeartAttackNumerical <- ifelse(data_n$HadHeartAttack == "Yes", 1, 0)
+data_n$HadAngina_Numerical <- ifelse(data_n$HadAngina == "Yes", 1, 0)
+data_n$Covid_Numerical <- ifelse(data_n$CovidPos == "Yes", 1, 0)
+data_n$FluVaxLast12_Numerical <- ifelse(data_n$FluVaxLast12 == "Yes", 1, 0)
+data_n$PneumoVaxEver_Numerical <- ifelse(data_n$PneumoVaxEver == "Yes", 1, 0)
+# Perform multiple linear regression
+model <- lm(HeartAttackNumerical ~ PhysicalHealthDays + MentalHealthDays + SleepHours + BMI + HadAngina + CovidPos + FluVaxLast12 + PneumoVaxEver, data = data_n)
+
+# Get the summary of the model
+summary(model)
+#This multiple regression model with HadAngina, CovidPos, FluVaxLast12 and PneumoVaxEver indicates several statistically significant predictors of heart attacks. More PhysicalHealthDays, higher BMI and Angina ( coefficient of “Yes") are associated with the higher estimated probability of heart attack. Surprisingly, the more MentalHealthDays shows a mild lower correlation. SleepHours is not statistically significant. Significant associations are also seen among various CovidPos categories and FluVaxLast12 status. The Adjusted R-squared of the model has skyrocketed (literally) to nearly 0.204, meaning a generally better, albeit moderate explanation of the variance in heart attack.
+```
+
+
